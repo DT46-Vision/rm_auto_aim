@@ -27,8 +27,13 @@ Detector::Detector(
 : binary_thres(bin_thres), detect_color(color), l(l), a(a)
 {
 }
-
-// 检测装甲板的主要函数
+/**
+ * @brief 主函数, 检测装甲板并返回装甲板列表
+ * 
+ * @return 返回装甲板列表
+ * @note 函数执行顺序为：预处理图像 -> 寻找灯源 -> 匹配灯源 -> 提取数字 -> 分类数字 -> 返回装甲板列表
+ * @note 函数返回装甲板列表后，会根据装甲板的类型进行分类，并计算装甲板的中心坐标和旋转角度
+ */
 std::vector<Armor> Detector::detect(const cv::Mat & input)
 {
   binary_img = preprocessImage(input);      // 预处理图像并获取二值图像
@@ -43,7 +48,12 @@ std::vector<Armor> Detector::detect(const cv::Mat & input)
   return armors_;  // 返回检测到的装甲板列表
 }
 
-// 预处理输入的RGB图像，转换为二值图像
+/**
+ * 预处理输入的RGB图像，转换为二值图像
+ * 
+ * @param rgb_img RGB图像
+ * @return 返回一个二值图像
+ */
 cv::Mat Detector::preprocessImage(const cv::Mat & rgb_img)
 {
   cv::Mat gray_img;  // 将RGB图像转换为灰度图像
@@ -55,7 +65,13 @@ cv::Mat Detector::preprocessImage(const cv::Mat & rgb_img)
   return binary_img;
 }
 
-// 在给定的RGB图像和二值图像中查找灯源
+/**
+ * 在给定的RGB图像和二值图像中查找灯源并返回一个二值图像
+ * 
+ * @param rgb_img RGB图像
+ * @param binary_img 二值图像
+ * @return 返回一个二值图像
+ */
 std::vector<Light> Detector::findLights(const cv::Mat & rbg_img, const cv::Mat & binary_img)
 {
   using std::vector;
@@ -103,20 +119,18 @@ std::vector<Light> Detector::findLights(const cv::Mat & rbg_img, const cv::Mat &
 }
 
 /**
- * 判断给定的光源对象是否符合识别为光源的标准
- * 主要通过光源对象的长宽比和倾斜角度来判断
+ * 判断给定的灯条对象是否符合识别为灯条的标准
+ * 主要通过灯条对象的长宽比和倾斜角度来判断
  * 
- * @param light 光源对象引用
- * @return 返回一个布尔值，表示该光源对象是否被识别为光源
+ * @param light 灯条对象引用
+ * @return 返回一个布尔值，表示该灯条对象是否被识别为灯条
  */
 bool Detector::isLight(const Light & light)
 {
-  // 计算光源的长宽比（短边 / 长边）
+  // 计算灯条的长宽比（短边 / 长边）
   float ratio = light.width / light.length;
   bool ratio_ok = l.min_ratio < ratio && ratio < l.max_ratio;
-
   bool angle_ok = light.tilt_angle < l.max_angle;
-
   bool is_light = ratio_ok && angle_ok;
 
   // 填充调试信息
@@ -131,9 +145,9 @@ bool Detector::isLight(const Light & light)
 }
 
 /**
- * 根据光源列表匹配装甲板对象
+ * 根据灯条列表匹配装甲板对象
  * 
- * @param lights 光源列表
+ * @param lights 灯条列表
  * @return 返回一个装甲板对象列表
  */
 std::vector<Armor> Detector::matchLights(const std::vector<Light> & lights)
@@ -141,7 +155,7 @@ std::vector<Armor> Detector::matchLights(const std::vector<Light> & lights)
   std::vector<Armor> armors;
   this->debug_armors.data.clear();
 
-  // 遍历所有可能的光源配对组合
+  // 遍历所有可能的灯条配对组合
   for (auto light_1 = lights.begin(); light_1 != lights.end(); light_1++) {
     for (auto light_2 = light_1 + 1; light_2 != lights.end(); light_2++) {
       if (light_1->color != detect_color || light_2->color != detect_color) continue;
@@ -162,7 +176,14 @@ std::vector<Armor> Detector::matchLights(const std::vector<Light> & lights)
   return armors;
 }
 
-// 检查边界中是否有其他灯由两个灯形成
+/**
+ * 检查边界中是否有其他灯由两个灯形成
+ * 
+ * @param light_1 第一个灯对象
+ * @param light_2 第二个灯对象
+ * @param lights 所有灯对象列表
+ * @return 返回一个布尔值，表示边界中是否有其他灯
+ */
 bool Detector::containLight(
   const Light & light_1, const Light & light_2, const std::vector<Light> & lights)
 {
@@ -234,8 +255,11 @@ ArmorType Detector::isArmor(const Light & light_1, const Light & light_2)
   return type;
 }
 
-// 获取包含所有检测到数字的图像
-// 返回值: 包含所有数字的图像，如果没有检测到则返回一个20x28大小的单通道灰度图
+/**
+ * 获取所有装甲板的数字图像
+ * 
+ * @return 返回一个OpenCV的Mat对象，包含所有装甲板的数字图像, 如果装甲板列表为空，则返回一个20x28大小的单通道灰度图
+ */
 cv::Mat Detector::getAllNumbersImage()
 {
   if (armors_.empty()) {
@@ -252,8 +276,11 @@ cv::Mat Detector::getAllNumbersImage()
   }
 }
 
-// 在输入图像上绘制检测结果
-// 参数: img - 输入图像
+/**
+ * 绘制检测结果
+ * 
+ * @param img 输入图像
+ */
 void Detector::drawResults(cv::Mat & img)
 {
   // 绘制灯
